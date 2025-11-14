@@ -2,7 +2,19 @@ import { registerRootComponent } from 'expo';
 
 import App from './App';
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
+async function enableMocking() {
+  if (!__DEV__) {
+    return;
+  }
+
+  await import("./msw.polyfills");
+
+  const { server } = await import("./src/mocks/server");
+  server.listen();
+}
+
+enableMocking().then(() => {
+  registerRootComponent(App);
+});
+
 registerRootComponent(App);
