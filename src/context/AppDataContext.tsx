@@ -1,10 +1,10 @@
 import React, {
   createContext,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
-
 import type { ClassEntity, School } from "../types/domain";
 import { createClass } from "../usecases/createClass";
 import { createSchool } from "../usecases/createSchool";
@@ -13,37 +13,51 @@ import { loadSchools } from "../usecases/loadSchools";
 
 interface AppDataContextValue {
   schools: School[];
-  fetchSchools: (search?: string) => Promise<void>;
-  addSchool: (data: { name: string; city?: string }) => Promise<void>;
-
   classesList: ClassEntity[];
+
+  fetchSchools: (search?: string) => Promise<void>;
   fetchClasses: (search?: string) => Promise<void>;
+
+  addSchool: (data: { name: string; city?: string }) => Promise<void>;
   addClass: (data: {
     name: string;
-    schoolId?: string | number;
+    schoolId: number | string;
   }) => Promise<void>;
+
+  updateSchool: (
+    id: number | string,
+    updates: { name?: string; city?: string }
+  ) => void;
+  deleteSchool: (id: number | string) => void;
+
+  updateClass: (
+    id: number | string,
+    updates: { name?: string; schoolId?: number | string }
+  ) => void;
+  deleteClass: (id: number | string) => void;
 }
 
 const AppDataContext = createContext<AppDataContextValue | undefined>(
   undefined
 );
 
-interface AppDataProviderProps {
-  children: ReactNode;
-}
-
-export function AppDataProvider({ children }: AppDataProviderProps) {
+export function AppDataProvider({ children }: { children: ReactNode }) {
   const [schools, setSchools] = useState<School[]>([]);
   const [classesList, setClassesList] = useState<ClassEntity[]>([]);
 
+  useEffect(() => {
+    fetchSchools();
+    fetchClasses();
+  }, []);
+
   const fetchSchools = async (search?: string) => {
     const data = await loadSchools(search ?? "");
-    setSchools(data);
-  };
-
-  const addSchool = async (payload: { name: string; city?: string }) => {
-    const created = await createSchool(payload);
-    setSchools((prev) => [created, ...prev]);
+    setSchools(
+      data.map((s) => ({
+        ...s,
+        classIds: s.classIds ?? [],
+      }))
+    );
   };
 
   const fetchClasses = async (search?: string) => {
@@ -51,21 +65,106 @@ export function AppDataProvider({ children }: AppDataProviderProps) {
     setClassesList(data);
   };
 
+  const addSchool = async (payload: { name: string; city?: string }) => {
+    const created = await createSchool(payload);
+    const schoolWithClassIds: School = {
+      ...created,
+      classIds: created.classIds ?? [],
+    };
+    setSchools((prev) => [schoolWithClassIds, ...prev]);
+  };
+
   const addClass = async (payload: {
     name: string;
-    schoolId?: string | number;
+    schoolId: number | string;
   }) => {
     const created = await createClass(payload);
+
     setClassesList((prev) => [created, ...prev]);
+
+    setSchools((prev) =>
+      prev.map((s) =>
+        String(s.id) === String(created.schoolId)
+          ? {
+              ...s,
+              classIds: [...(s.classIds ?? []), created.id],
+            }
+          : s
+      )
+    );
+  };
+
+  const updateSchool = (
+    id: number | string,
+    updates: { name?: string; city?: string }
+  ) => {
+    setSchools((prev) =>
+      prev.map((s) => (String(s.id) === String(id) ? { ...s, ...updates } : s))
+    );
+  };
+
+  const updateClass = (
+    id: number | string,
+    updates: { name?: string; schoolId?: number | string }
+  ) => {
+    setClassesList((prev) =>
+      prev.map((c) => (String(c.id) === String(id) ? { ...c, ...updates } : c))
+    );
+
+    if (updates.schoolId !== undefined) {
+      setSchools((prev) =>
+        prev.map((s) => {
+          let classIds = s.classIds ?? [];
+          const has = classIds.some((cid) => String(cid) === String(id));
+
+          if (has && String(s.id) !== String(updates.schoolId)) {
+            classIds = classIds.filter((cid) => String(cid) !== String(id));
+          }
+
+          if (
+            String(s.id) === String(updates.schoolId) &&
+            !classIds.some((cid) => String(cid) === String(id))
+          ) {
+            classIds = [...classIds, Number(id)];
+          }
+
+          return { ...s, classIds };
+        })
+      );
+    }
+  };
+
+  const deleteSchool = (id: number | string) => {
+    setSchools((prev) => prev.filter((s) => String(s.id) !== String(id)));
+    setClassesList((prev) =>
+      prev.filter((c) => String(c.schoolId) !== String(id))
+    );
+  };
+
+  const deleteClass = (id: number | string) => {
+    setClassesList((prev) => prev.filter((c) => String(c.id) !== String(id)));
+
+    setSchools((prev) =>
+      prev.map((s) => ({
+        ...s,
+        classIds: (s.classIds ?? []).filter(
+          (cid) => String(cid) !== String(id)
+        ),
+      }))
+    );
   };
 
   const value: AppDataContextValue = {
     schools,
-    fetchSchools,
-    addSchool,
     classesList,
+    fetchSchools,
     fetchClasses,
+    addSchool,
     addClass,
+    updateSchool,
+    deleteSchool,
+    updateClass,
+    deleteClass,
   };
 
   return (
