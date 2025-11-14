@@ -1,7 +1,7 @@
+// src/features/classes/ClassesScreen.tsx
 import { MaterialIcons } from "@expo/vector-icons";
 import { Box, Button, Text } from "@gluestack-ui/themed";
 import { Picker } from "@react-native-picker/picker";
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -10,9 +10,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  useWindowDimensions,
 } from "react-native";
+import { FloatingActionButton } from "../../../components/FloatingActionButton";
+import { ScreenHeader } from "../../../components/ScreenHeader";
 import { useAppData } from "../../context/AppDataContext";
+import { useResponsiveColumns } from "../../hooks/useResponsiveColumns";
 import type { ClassEntity, School } from "../../types/domain";
 
 export default function ClassesScreen() {
@@ -29,25 +31,20 @@ export default function ClassesScreen() {
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
   const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
+  const [turno, setTurno] = useState<string>("");
+  const [anoLetivo, setAnoLetivo] = useState<string>("");
+
   const [editingClass, setEditingClass] = useState<ClassEntity | null>(null);
 
   const [isFormVisible, setIsFormVisible] = useState(false);
   const translateY = useRef(new Animated.Value(220)).current;
 
-  const { width } = useWindowDimensions();
+  const numColumns = useResponsiveColumns();
 
   useEffect(() => {
-    // garantir que turmas e escolas estejam carregadas
     fetchClasses();
     fetchSchools();
-  }, []);
-
-  let numColumns = 1;
-  if (width >= 900) {
-    numColumns = 3;
-  } else if (width >= 600) {
-    numColumns = 2;
-  }
+  }, [fetchClasses, fetchSchools]);
 
   const openForm = () => {
     setIsFormVisible(true);
@@ -70,6 +67,8 @@ export default function ClassesScreen() {
     setEditingClass(null);
     setName("");
     setSelectedSchoolId("");
+    setTurno("");
+    setAnoLetivo("");
     openForm();
   };
 
@@ -78,21 +77,31 @@ export default function ClassesScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !selectedSchoolId) return;
+    if (!name.trim() || !selectedSchoolId || !turno || !anoLetivo) return;
+
+    const parsedAno = Number(anoLetivo) as ClassEntity["anoLetivo"];
+    const parsedTurno = turno as ClassEntity["turno"];
 
     if (editingClass) {
-      // editar turma existente
       updateClass(editingClass.id, {
         name,
         schoolId: Number(selectedSchoolId),
+        turno: parsedTurno,
+        anoLetivo: parsedAno,
       });
     } else {
-      // criar nova turma
-      await addClass({ name, schoolId: Number(selectedSchoolId) });
+      await addClass({
+        name,
+        schoolId: Number(selectedSchoolId),
+        turno: parsedTurno,
+        anoLetivo: parsedAno,
+      });
     }
 
     setName("");
     setSelectedSchoolId("");
+    setTurno("");
+    setAnoLetivo("");
     setEditingClass(null);
     closeForm();
   };
@@ -121,6 +130,9 @@ export default function ClassesScreen() {
             <Text fontSize="$sm" mt="$1" color="$emerald800">
               Escola: {schoolName}
             </Text>
+            <Text fontSize="$xs" mt="$1" color="$emerald800">
+              Turno: {item.turno} • Ano letivo: {item.anoLetivo}
+            </Text>
           </Box>
 
           <Box flexDirection="row">
@@ -129,6 +141,8 @@ export default function ClassesScreen() {
                 setEditingClass(item);
                 setName(item.name);
                 setSelectedSchoolId(String(item.schoolId ?? ""));
+                setTurno(item.turno);
+                setAnoLetivo(String(item.anoLetivo));
                 openForm();
               }}
               style={{ padding: 4, marginRight: 4 }}
@@ -163,40 +177,7 @@ export default function ClassesScreen() {
 
   return (
     <Box flex={1} bg="$backgroundLight0" p="$4">
-      {/* Header com badge + título menor */}
-      <Box
-        mt="$6"
-        mb="$4"
-        flexDirection="row"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        {/* badge à esquerda */}
-        <LinearGradient
-          colors={["#2E7D32", "#66BB6A"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.badgeOuter}
-        >
-          <Box
-            bg="$backgroundLight0"
-            borderRadius={999}
-            px="$3"
-            py="$1"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text fontSize="$xs" fontWeight="$semibold" color="$emerald700">
-              school helper
-            </Text>
-          </Box>
-        </LinearGradient>
-
-        {/* título menor à direita */}
-        <Text fontSize="$lg" fontWeight="$bold" color="$emerald700">
-          Turmas
-        </Text>
-      </Box>
+      <ScreenHeader title="Turmas" />
 
       <TextInput
         placeholder="Buscar turmas..."
@@ -215,9 +196,7 @@ export default function ClassesScreen() {
         renderItem={renderItem}
       />
 
-      <Pressable style={styles.fab} onPress={openFormForCreate}>
-        <Text style={styles.fabText}>＋</Text>
-      </Pressable>
+      <FloatingActionButton onPress={openFormForCreate} />
 
       {isFormVisible && (
         <Animated.View
@@ -235,7 +214,7 @@ export default function ClassesScreen() {
               style={styles.input}
             />
 
-            {/* Select de escola */}
+            {/* Escola */}
             <Box mt="$1" mb="$2">
               <Text fontSize="$xs" mb="$1" color="$emerald700">
                 Escola
@@ -263,6 +242,55 @@ export default function ClassesScreen() {
               </Box>
             </Box>
 
+            {/* Turno */}
+            <Box mt="$1" mb="$2">
+              <Text fontSize="$xs" mb="$1" color="$emerald700">
+                Turno
+              </Text>
+              <Box
+                borderWidth={1}
+                borderColor="$emerald400"
+                borderRadius="$lg"
+                overflow="hidden"
+                bg="$backgroundLight0"
+              >
+                <Picker
+                  selectedValue={turno}
+                  onValueChange={(value) => setTurno(String(value))}
+                >
+                  <Picker.Item value="" label="Selecione o turno" />
+                  <Picker.Item value="Manhã" label="Manhã" />
+                  <Picker.Item value="Tarde" label="Tarde" />
+                  <Picker.Item value="Noite" label="Noite" />
+                </Picker>
+              </Box>
+            </Box>
+
+            {/* Ano letivo */}
+            <Box mt="$1" mb="$2">
+              <Text fontSize="$xs" mb="$1" color="$emerald700">
+                Ano letivo
+              </Text>
+              <Box
+                borderWidth={1}
+                borderColor="$emerald400"
+                borderRadius="$lg"
+                overflow="hidden"
+                bg="$backgroundLight0"
+              >
+                <Picker
+                  selectedValue={anoLetivo}
+                  onValueChange={(value) => setAnoLetivo(String(value))}
+                >
+                  <Picker.Item value="" label="Selecione o ano" />
+                  <Picker.Item value="2025" label="2025" />
+                  <Picker.Item value="2026" label="2026" />
+                  <Picker.Item value="2027" label="2027" />
+                  <Picker.Item value="2028" label="2028" />
+                </Picker>
+              </Box>
+            </Box>
+
             <Box flexDirection="row" justifyContent="flex-end" mt="$2">
               <Button
                 variant="outline"
@@ -274,7 +302,7 @@ export default function ClassesScreen() {
                 <Text color="$emerald700">Cancelar</Text>
               </Button>
               <Button bg="$emerald600" onPress={handleSubmit}>
-                <Text color="$white">Salvar</Text>
+                <Text color="#FFFFFF">Salvar</Text>
               </Button>
             </Box>
           </Box>
@@ -285,11 +313,6 @@ export default function ClassesScreen() {
 }
 
 const styles = StyleSheet.create({
-  badgeOuter: {
-    borderRadius: 999,
-    padding: 2,
-    alignSelf: "flex-start",
-  },
   input: {
     borderWidth: 1,
     borderColor: "#A5D6A7",
@@ -316,27 +339,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
-  },
-  fab: {
-    position: "absolute",
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#2E7D32",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  fabText: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    lineHeight: 30,
   },
   bottomForm: {
     position: "absolute",

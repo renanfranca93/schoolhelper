@@ -18,21 +18,28 @@ interface AppDataContextValue {
   fetchSchools: (search?: string) => Promise<void>;
   fetchClasses: (search?: string) => Promise<void>;
 
-  addSchool: (data: { name: string; city?: string }) => Promise<void>;
+  addSchool: (data: { name: string; address?: string }) => Promise<void>;
   addClass: (data: {
     name: string;
     schoolId: number | string;
+    turno: ClassEntity["turno"];
+    anoLetivo: ClassEntity["anoLetivo"];
   }) => Promise<void>;
 
   updateSchool: (
     id: number | string,
-    updates: { name?: string; city?: string }
+    updates: { name?: string; address?: string }
   ) => void;
   deleteSchool: (id: number | string) => void;
 
   updateClass: (
     id: number | string,
-    updates: { name?: string; schoolId?: number | string }
+    updates: {
+      name?: string;
+      schoolId?: number | string;
+      turno?: ClassEntity["turno"];
+      anoLetivo?: ClassEntity["anoLetivo"];
+    }
   ) => void;
   deleteClass: (id: number | string) => void;
 }
@@ -65,7 +72,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setClassesList(data);
   };
 
-  const addSchool = async (payload: { name: string; city?: string }) => {
+  const addSchool = async (payload: { name: string; address?: string }) => {
     const created = await createSchool(payload);
     const schoolWithClassIds: School = {
       ...created,
@@ -77,6 +84,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addClass = async (payload: {
     name: string;
     schoolId: number | string;
+    turno: ClassEntity["turno"];
+    anoLetivo: ClassEntity["anoLetivo"];
   }) => {
     const created = await createClass(payload);
 
@@ -96,7 +105,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const updateSchool = (
     id: number | string,
-    updates: { name?: string; city?: string }
+    updates: { name?: string; address?: string }
   ) => {
     setSchools((prev) =>
       prev.map((s) => (String(s.id) === String(id) ? { ...s, ...updates } : s))
@@ -105,7 +114,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const updateClass = (
     id: number | string,
-    updates: { name?: string; schoolId?: number | string }
+    updates: {
+      name?: string;
+      schoolId?: number | string;
+      turno?: ClassEntity["turno"];
+      anoLetivo?: ClassEntity["anoLetivo"];
+    }
   ) => {
     setClassesList((prev) =>
       prev.map((c) => (String(c.id) === String(id) ? { ...c, ...updates } : c))
@@ -174,8 +188,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
 export function useAppData(): AppDataContextValue {
   const ctx = useContext(AppDataContext);
-  if (!ctx) {
-    throw new Error("useAppData must be used inside AppDataProvider");
-  }
+  if (!ctx) throw new Error("useAppData must be used inside AppDataProvider");
   return ctx;
 }

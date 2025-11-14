@@ -1,6 +1,6 @@
+// src/features/schools/SchoolsScreen.tsx
 import { MaterialIcons } from "@expo/vector-icons";
 import { Box, Button, Text } from "@gluestack-ui/themed";
-import { LinearGradient } from "expo-linear-gradient";
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -9,9 +9,11 @@ import {
   Pressable,
   StyleSheet,
   TextInput,
-  useWindowDimensions,
 } from "react-native";
+import { FloatingActionButton } from "../../../components/FloatingActionButton";
+import { ScreenHeader } from "../../../components/ScreenHeader";
 import { useAppData } from "../../context/AppDataContext";
+import { useResponsiveColumns } from "../../hooks/useResponsiveColumns";
 import type { School } from "../../types/domain";
 
 export default function SchoolsScreen() {
@@ -20,25 +22,17 @@ export default function SchoolsScreen() {
 
   const [search, setSearch] = useState("");
   const [name, setName] = useState("");
-  const [city, setCity] = useState("");
+  const [address, setAddress] = useState("");
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
 
   const [isFormVisible, setIsFormVisible] = useState(false);
   const translateY = useRef(new Animated.Value(220)).current;
 
-  const { width } = useWindowDimensions();
+  const numColumns = useResponsiveColumns();
 
-  // ✅ Garante que as escolas sejam carregadas quando a tela montar
   useEffect(() => {
     fetchSchools();
   }, [fetchSchools]);
-
-  let numColumns = 1;
-  if (width >= 900) {
-    numColumns = 3;
-  } else if (width >= 600) {
-    numColumns = 2;
-  }
 
   const openForm = () => {
     setIsFormVisible(true);
@@ -57,6 +51,13 @@ export default function SchoolsScreen() {
     }).start(() => setIsFormVisible(false));
   };
 
+  const openFormForCreate = () => {
+    setEditingSchool(null);
+    setName("");
+    setAddress("");
+    openForm();
+  };
+
   const handleSearch = () => {
     fetchSchools(search);
   };
@@ -65,22 +66,15 @@ export default function SchoolsScreen() {
     if (!name.trim()) return;
 
     if (editingSchool) {
-      updateSchool(editingSchool.id, { name, city });
+      updateSchool(editingSchool.id, { name, address });
     } else {
-      await addSchool({ name, city });
+      await addSchool({ name, address });
     }
 
     setName("");
-    setCity("");
+    setAddress("");
     setEditingSchool(null);
     closeForm();
-  };
-
-  const openFormForCreate = () => {
-    setEditingSchool(null);
-    setName("");
-    setCity("");
-    openForm();
   };
 
   const renderItem = ({ item }: { item: School }) => {
@@ -97,9 +91,9 @@ export default function SchoolsScreen() {
             <Text fontWeight="$bold" fontSize="$md" color="$emerald700">
               {item.name}
             </Text>
-            {item.city ? (
+            {item.address ? (
               <Text fontSize="$sm" mt="$1" color="$emerald800">
-                {item.city}
+                {item.address}
               </Text>
             ) : null}
             <Text fontSize="$xs" mt="$2" color="$emerald700">
@@ -112,7 +106,7 @@ export default function SchoolsScreen() {
               onPress={() => {
                 setEditingSchool(item);
                 setName(item.name);
-                setCity(item.city ?? "");
+                setAddress(item.address ?? "");
                 openForm();
               }}
               style={{ padding: 4, marginRight: 4 }}
@@ -147,40 +141,7 @@ export default function SchoolsScreen() {
 
   return (
     <Box flex={1} bg="$backgroundLight0" p="$4">
-      {/* Header com badge + título menor */}
-      <Box
-        mt="$6"
-        mb="$4"
-        flexDirection="row"
-        alignItems="center"
-        justifyContent="space-between"
-      >
-        {/* badge à esquerda */}
-        <LinearGradient
-          colors={["#2E7D32", "#66BB6A"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.badgeOuter}
-        >
-          <Box
-            bg="$backgroundLight0"
-            borderRadius={999}
-            px="$3"
-            py="$1"
-            justifyContent="center"
-            alignItems="center"
-          >
-            <Text fontSize="$xs" fontWeight="$semibold" color="$emerald700">
-              school helper
-            </Text>
-          </Box>
-        </LinearGradient>
-
-        {/* título menor à direita */}
-        <Text fontSize="$lg" fontWeight="$bold" color="$emerald700">
-          Escolas
-        </Text>
-      </Box>
+      <ScreenHeader title="Escolas" />
 
       <TextInput
         placeholder="Buscar escolas..."
@@ -199,9 +160,7 @@ export default function SchoolsScreen() {
         renderItem={renderItem}
       />
 
-      <Pressable style={styles.fab} onPress={openFormForCreate}>
-        <Text style={styles.fabText}>＋</Text>
-      </Pressable>
+      <FloatingActionButton onPress={openFormForCreate} />
 
       {isFormVisible && (
         <Animated.View
@@ -220,9 +179,9 @@ export default function SchoolsScreen() {
             />
 
             <TextInput
-              placeholder="Cidade"
-              value={city}
-              onChangeText={setCity}
+              placeholder="Endereço"
+              value={address}
+              onChangeText={setAddress}
               style={styles.input}
             />
 
@@ -248,11 +207,6 @@ export default function SchoolsScreen() {
 }
 
 const styles = StyleSheet.create({
-  badgeOuter: {
-    borderRadius: 999,
-    padding: 2,
-    alignSelf: "flex-start",
-  },
   input: {
     borderWidth: 1,
     borderColor: "#A5D6A7",
@@ -279,27 +233,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 2,
     elevation: 2,
-  },
-  fab: {
-    position: "absolute",
-    right: 24,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#2E7D32",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 4,
-  },
-  fabText: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    lineHeight: 30,
   },
   bottomForm: {
     position: "absolute",
