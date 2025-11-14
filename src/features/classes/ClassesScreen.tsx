@@ -1,4 +1,3 @@
-// src/features/classes/ClassesScreen.tsx
 import { MaterialIcons } from "@expo/vector-icons";
 import { Box, Button, Text } from "@gluestack-ui/themed";
 import { Picker } from "@react-native-picker/picker";
@@ -266,7 +265,6 @@ export default function ClassesScreen() {
               </Box>
             </Box>
 
-            {/* Ano letivo */}
             <Box mt="$1" mb="$2">
               <Text fontSize="$xs" mb="$1" color="$emerald700">
                 Ano letivo

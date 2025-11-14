@@ -1,4 +1,3 @@
-// src/features/schools/SchoolsScreen.tsx
 import { MaterialIcons } from "@expo/vector-icons";
 import { Box, Button, Text } from "@gluestack-ui/themed";
 import React, { useEffect, useRef, useState } from "react";
